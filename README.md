@@ -15,35 +15,22 @@ pimd is primarily maintained on Linux and should work as-is out of the
 box on all major distributions.  Other UNIX variants should also work,
 but are not as thoroughly tested.  See the file `config.mk` for details.
  
-Configuring pimd
-----------------
+Configuration
+-------------
 
-Since pimd is a single-function daemon, the configuration is really not
-that complex -- at least when compared to a monster tool such as
-gated. The configuration data is kept in the file /etc/pimd.conf.  While
-the order of the statements does not have to strictly follow what is
-about to be presented, I'll walk you through the contents you might want
-to add to this file.
+The configuration is kept in the file `/etc/pimd.conf` and the order of
+the statements are in some cases important.  See the template .conf for
+details.
 
-The `/etc/pimd.conf` file begins with the following statement:
+Since pimd currently cannot retrieve distance (preference) and metric
+from the kernel, or a route manager like Zebra, two settings are instead
+provided that is used as default values for the
 
-    default_source_preference value
+    default_source_preference <1-255>
+    default_source_metric     <1-1024>
 
-Routers hold elections to determine which gets to be a site's upstream
-router.  Because pimd is such a focused tool, you generally don't want
-it to win over something more general.  Using a value of 101 here is a
-minimum for making sure that gated and other routing tools are going to
-win the election and leave pimd to do its PIM-SM handling.  The next
-line is:
-
-    default_source_metric value
-
-This item sets the cost for sending data through this router.  You want only
-PIM-SM data to go to this daemon; so once again, a high value is recommended
-to prevent accidental usage.  The preferred default value is 1024.
-
-Though you can swap the first two statements around, you must have the next
-statement after you set `default_source_metric`.  This item starts with:
+These two settings provide default values to interface specific
+settings, can be o  thewill be used in PIM Assert messages:
 
     phyint interface
 
@@ -160,4 +147,15 @@ Both of the flags with their values are optional:
 
    * `-d [level1,...,levelN]`: Specifies the debug level(s) to utilize
       when running the daemon.  Type `pimd -h` for a full list of levels
+
+
+Monitoring
+----------
+
+    pimd -r
+
+or
+
+    watch pimd -r
+
 
