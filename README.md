@@ -1,104 +1,123 @@
-The original PIM-SM multicast daemon
-====================================
+README
+======
 
 pimd is a lightweight, stand-alone implementation of RFC 2362, available
 under the 3-clause BSD license.  This is the restored original version
 from University of Southern California, by Ahmed Helmy, Rusty Eddy and
 Pavlin Ivanov Radoslavov.
 
-pimd is currently maintained at GitHub.  Use its facilities for issue
-reports, patches and GIT pull requests.
+pimd is maintained at GitHub.  Use its facilities to access the source,
+report bugs, feature requests, send patches and for GIT pull requests:
 
-  http://github.com/troglobit/pimd/issues
+  http://github.com/troglobit/pimd
 
-pimd is primarily maintained on Linux and should work as-is out of the
+pimd also has a homepage, mainly to distribute releases:
+
+  http://troglobit.com/pimd.html
+
+pimd is primarily developed on Linux and should work as-is out of the
 box on all major distributions.  Other UNIX variants should also work,
-but are not as thoroughly tested.  See the file `config.mk` for details.
- 
+but are not as thoroughly tested.  See the file `config.mk` for details
+on support and various tricks needed.
+
+
 Configuration
 -------------
 
-The configuration is kept in the file `/etc/pimd.conf` and the order of
-the statements are in some cases important.  See the template .conf for
-details.
+The configuration is kept in the file `/etc/pimd.conf`, the order of
+the statements are in some cases important.
 
-Since pimd currently cannot retrieve distance (preference) and metric
-from the kernel, or a route manager like Zebra, two settings are instead
-provided that is used as default values for the
+PIM-SM is a designed to be a _protocol independent_ multicast routing
+protocol.  As such it relies on protocols like, e.g, OSPF, RIP, or
+static routing entries, to figure out the path to all multicast capable
+neighboring routers.  This information is necessary in setups with more
+than one route between a multicast sender and a receiver to figure out
+which PIM router should be the active forwarder.
 
-    default_source_preference <1-255>
-    default_source_metric     <1-1024>
+However, pimd currently cannot retrieve the unicast routing distance
+(preference) and metric of routes from the system, not from the kernel
+nor a route manager like zebra.  Hence, pimd currently needs to be setup
+statically on each router using the desired distance and metric for each
+active interface.  If either the distance and/or the metric is missing
+in an interface configuration, the following two defaults will be used:
 
-These two settings provide default values to interface specific
-settings, can be o  thewill be used in PIM Assert messages:
+    default_source_preference <1-255>     default: 101   (distance)
+    default_source_metric     <1-1024>    default: 1024
 
-    phyint interface
+By default pimd starts up on all interfaces it can find, using the above
+defaults.  To configure individual interfaces use:
 
-`phyint` refers to physical interface.  You fill in interface with a
-reference to the ethernet card or other network interface you're telling
-pimd about, either with the device's IP address or name (for example,
-eth0).  If you just want to activate this interface with default values,
-you don't need to put anything else on the line.  However, you do have
-some additional items you can add.  The items are, in the order you
-would need to use them, as follows:
+    phyint <address | ifname> ...
 
-   * `disable`:  Do not send PIM-SM traffic through this interface nor listen
-     for PIM-SM traffic from this interface
+You can reference the interface via either its local IPv4 address or
+its name, e.g., eth0.  Some common interface settings are:
 
-   * `preference pref`:  This interface's value in an election. It will have
-     `default_source_preference` if not assigned
+   * `disable`: Disable pimd on this interface, i.e., do not send or
+     listen for PIM-SM traffic
 
-   * `metric cost`:  The cost of sending data through this interface. It will
-     have the `default_source_metric` if not assigned
+   * `preference <1-255>`: The interface's distance value (also
+     confusingly referred to as metric preference) in PIM Assert
+     messages.  Used with `metric` to elect the active multicast
+     forwarding router.  Defaults to `default_source_preference`
 
-Add one `phyint` line per interface on this router.  If you don't do
-this, pimd will simply assume that you want it to utilize all interfaces
-on the machine with the default values.  If you set phyint for one or
-more interfaces but not for all, the missing ones will be assigned the
-defaults.  After you have done this, start the next line with:
+   * `metric <1-1024>`: The cost for traversing this router.  Used with
+     the `preference` value above. Defaults to `default_source_metric`
 
-    cand_rp
+More interface settings are available, see the pimd(8) manual page for
+the full details.
 
-cand_rp refers to Candidate Rendez-vous Point (CRP).  This statement
-specifies which interface on this machine should be included in RP
-elections.  Additional options to choose from are, listed in the order
-used, as follows:
+The most notable feature of PIM-SM is that multicast is distributed from
+so called Rendezvous Points (RP).  Each RP handles distribution of one
+or more multicast groups, pimd can be configured to advertise itself as
+a candidate RP `cand_rp`, and request to be static RP `rp_address` for
+one or more multicast groups.
 
-   * `ipadd`: The default is the largest activated IP address. If you
-     don't want to utilize that interface, add the IP address of the
-     interface to use as the next term
+    rp_address <address> [<group>[/<LENGTH> | masklen <LENGTH]
 
-   * `time value`: The number of seconds to wait between advertising
-     this CRP. The default value is 60 seconds
+The `rp_address` setting is the same as the Cisco `ip pim rp-address`
+setting to configure static Rendezvous Points.  The first argument can
+be an IPv4 address or a multicast group address.  The default group and
+prefix length is 224.0.0.0/16.  Static RP's always have priority 1.
 
-   * `priority num`: How important this CRP is compared to others. The
-     lower the value here, the more important the CRP
+    cand_rp [address | ifname] [time <10-16383>] [priority <0-255>]
 
-The next line begins with:
+The Rendezvous Point candidate, or CRP, setting is the same as the Cisco
+`ip pim rp-candidate` setting.  Use it to control which interface that
+should be used in RP elections.
 
-    cand_bootstrap_router
+   * `address | ifname`: Optional local IPv4 address, or interface name
+     to acquire address from.  The default is to use the highest active
+     IP address.
 
-Here you give the information for how this machine advertises itself as
-a Candidate BootStrap Router (CBSR).  If you need to, add the ipaddr
-and/or priority items as defined earlier after `cand_bootstrap_router`.
-What follows is a series of statements that start with:
+   * `time <10-16383>`: The interval, in seconds, between advertising
+     this CRP. Default: 60 seconds
 
-    group_prefix
+   * `priority <0-255>`: How important this CRP is compared to others.
+     The lower the value here, the more important the CRP.  Like Cisco,
+     pimd defaults to priority 0 when this is left out
 
-Each group_prefix statement outlines the set of multicast addresses that
-CRP, if it wins an election, will advertise to other routers. The two
-items you might include here are, listed in order, as follows:
+In the CRP messages sent out by pimd, one or more multicast groups can
+be advertised using the following syntax.
 
-   * `groupaddr`: A specific IP or network range this router will
-     handle.  Remember that a single multicast network is written as a
-     single IP address
+    group_prefix <group>[</LENGTH> | masklen <LENGTH>]
 
-   * `masklen len`: The number of IP address segments taken up by the
-     netmask.  Remember that a multicast address is a Class D and has a
-     netmask of 255.255.255.255, which means its length is 4.  The
-     prefix length can also be given as `groupaddr/len`
+Each `group_prefix` setting defines one multicast group and an optional
+mask length, which defaults to 16 if left out.  A maximum of 255
+multicast group prefix records is possible for the CRP.
 
-Max `group_prefix` multicast addresses supported in pimd is 255.
+To keep track of all Rendezvous Points in a PIM-SM domain there exists a
+feature called *Bootstrap Router*.  The elected BSR in a PIM-SM domain
+periodically announces the RP set in Bootstrap messages.  For details on
+PIM BSR operation, see [RFC 5059](http://tools.ietf.org/search/rfc5059).
+
+    cand_bootstrap_router [address | ifname] [priority <0-255>]
+
+The configuration of a Candidate BootStrap Router (CBSR) is very similar
+to that of CRP, except for the interval time.  If either the address or
+the interface name is left out pimd uses the highest active IP address.
+If the priority is left out, pimd (like Cisco) defaults to priority 0.
+
+
 
 After this comes:
 
@@ -128,8 +147,8 @@ addresses; don't use them for actual testing purposes):
     switch_register_threshold rate 60000 interval 10
 
 
-Running pimd
-------------
+Running
+-------
 
 After you've set up the configuration file, you're ready to actually run
 the PIM-SM daemon.  As usual, we recommend that you run this by hand for
