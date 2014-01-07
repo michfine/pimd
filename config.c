@@ -638,20 +638,21 @@ int parse_candidateRP(char *s)
 	    if (time > (my_cand_rp_adv_period = ~0))
 		time = my_cand_rp_adv_period;
 
-	    /* TODO: XXX: cannot be shorter than 10 seconds (not in the spec)*/
-	    if (time < 10)
-		time = 10;
-#if 0
-	    if (time > PIM_DEFAULT_CAND_RP_ADV_PERIOD)
-		time = PIM_DEFAULT_CAND_RP_ADV_PERIOD;
-#endif /* 0 */
+	    if (time < PIM_MIN_CAND_RP_ADV_PERIOD)
+		time = PIM_MIN_CAND_RP_ADV_PERIOD;
+
+	    if (time > PIM_MAX_CAND_RP_ADV_PERIOD)
+		time = PIM_MAX_CAND_RP_ADV_PERIOD;
 
 	    my_cand_rp_adv_period = time;
 	    continue;
 	}
 
-	/* Cand-RP address */
-	local = inet_parse(w, 4);
+	/* Cand-RP interface or address */
+	local = ifname2addr(w);
+	if (!local)
+	    local = inet_parse(w, 4);
+
 	if (!inet_valid_host(local)) {
 	    WARN("Invalid Cand-RP address '%s'. Defaulting to largest enabled local address", w);
 	    local = max_local_address();
@@ -671,9 +672,8 @@ int parse_candidateRP(char *s)
     my_cand_rp_adv_period = time;
     cand_rp_flag = TRUE;
 
-    logit(LOG_INFO, 0, "Local Cand-RP address is %s", inet_fmt(local, s1, sizeof(s1)));
-    logit(LOG_INFO, 0, "Local Cand-RP priority is %u", priority);
-    logit(LOG_INFO, 0, "Local Cand-RP advertisement period is %u sec.", time);
+    logit(LOG_INFO, 0, "Local Cand-RP address %s, priority %u, interval %u sec",
+	  inet_fmt(local, s1, sizeof(s1)), priority, time);
 
     return TRUE;
 }
