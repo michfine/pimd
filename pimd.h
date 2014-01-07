@@ -85,6 +85,7 @@
 					     * pp.22 bottom of the spec.
 					     */
 #define PIM_MAX_CAND_RP_PRIORITY        255 /* 255 is the highest. */
+
 #define PIM_DEFAULT_BSR_PRIORITY          0 /* 0 is the lowest               */
 #define RP_DEFAULT_IPV4_HASHMASKLEN      30 /* the default group msklen used
 					     * by the hash function to 

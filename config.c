@@ -610,27 +610,33 @@ int parse_candidateRP(char *s)
     while (!EQUAL((w = next_word(&s)), "")) {
 	if (EQUAL(w, "priority")) {
 	    if (EQUAL((w = next_word(&s)), "")) {
-		WARN("Missing priority; set to default %u (0 is highest)", PIM_DEFAULT_CAND_RP_PRIORITY);
+		WARN("Missing priority, defaulting to %u", w, PIM_DEFAULT_CAND_RP_PRIORITY);
 		priority = PIM_DEFAULT_CAND_RP_PRIORITY;
 		continue;
 	    }
 
 	    if (sscanf(w, "%u", &priority) != 1) {
-		WARN("Invalid priority %s; set to default %u (0 is highest)", PIM_DEFAULT_CAND_RP_PRIORITY);
+		WARN("Invalid priority %s, defaulting to %u", w, PIM_DEFAULT_CAND_RP_PRIORITY);
 		priority = PIM_DEFAULT_CAND_RP_PRIORITY;
 	    }
+
+	    if (priority > PIM_MAX_CAND_RP_PRIORITY) {
+		WARN("Too high Cand-RP priority %u, defaulting to %d", priority, PIM_MAX_CAND_RP_PRIORITY);
+		priority = PIM_MAX_CAND_RP_PRIORITY;
+	    }
+
 	    continue;
 	}
 
 	if (EQUAL(w, "time")) {
 	    if (EQUAL((w = next_word(&s)), "")) {
-		WARN("Missing cand_rp_adv_period value; set to default %u", PIM_DEFAULT_CAND_RP_ADV_PERIOD);
+		WARN("Missing Cand-RP announce interval, defaulting to %u", PIM_DEFAULT_CAND_RP_ADV_PERIOD);
 		time = PIM_DEFAULT_CAND_RP_ADV_PERIOD;
 		continue;
 	    }
 
 	    if (sscanf(w, "%u", &time) != 1) {
-		WARN("Invalid cand_rp_adv_period value; set to default %u", PIM_DEFAULT_CAND_RP_ADV_PERIOD);
+		WARN("Invalid Cand-RP announce interval, defaulting to %u", PIM_DEFAULT_CAND_RP_ADV_PERIOD);
 		time = PIM_DEFAULT_CAND_RP_ADV_PERIOD;
 		continue;
 	    }
@@ -654,13 +660,13 @@ int parse_candidateRP(char *s)
 	    local = inet_parse(w, 4);
 
 	if (!inet_valid_host(local)) {
-	    WARN("Invalid Cand-RP address '%s'. Defaulting to largest enabled local address", w);
 	    local = max_local_address();
+	    WARN("Invalid Cand-RP address '%s', defaulting to %s", w, inet_fmt(local, s1, sizeof(s1)));
 	} else if (local_address(local) == NO_VIF) {
-	    WARN("Cand-RP address '%s' is not local. Defaulting to largest enabled local address", w);
 	    local = max_local_address();
+	    WARN("Cand-RP address '%s' is not local, defaulting to %s", w, inet_fmt(local, s1, sizeof(s1)));
 	}
-    } /* while not empty */
+    }
 
     if (local == INADDR_ANY_N) {
 	/* If address not provided, use the max. local */
