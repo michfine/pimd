@@ -173,22 +173,35 @@ usual, it is recommended that you start it manually first, to make sure
 everything works as expected, before adding it to your system's startup
 scripts,  with any startup flags it might need.
 
-    pimd [-c file] [-d [level1,...,levelN]]
+    pimd [-c file] [-d[level1,...,levelN]]
 
    * `-c file`: Utilize the specified configuration file rather than the
       default, `/etc/pimd.conf`
 
-   * `-d [level1,...,levelN]`: Specifies the debug level(s) to utilize
+   * `-d[level1,...,levelN]`: Specifies the debug level(s) to utilize
       when running the daemon.  Type `pimd -h` for a full list of levels
+
+**Example:**
+
+    pimd -c /cfg/pimd.conf -digmp_proto,pim_jp,kernel,pim_register
+
+Notice the lack of spaces in the option argument to `-d`, the
+long-option `--debug=igmp_proto,pim_jp,kernel,pim_register`is slightly
+more readable.
 
 
 Monitoring
 ----------
 
+To see the virtual interface table, including neighboring PIM routers,
+and the multicast routing table:
+
     pimd -r
 
-or
+or to watch it continually:
 
     watch pimd -r
 
+In addition, pimd logs important events to the system logfile, in
+particular at startup when parsing the `pimd.conf` configuration file.
 
