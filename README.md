@@ -132,29 +132,37 @@ settings are still supported, for compatibility reasons and documented
 in the man-page, but it is strongly recommended to change to the new
 syntax instead:
 
-    spt_threshold [rate <BYTES> | packets <NUM> | INF] [interval <5-60>]
+    spt_threshold [rate <KBPS> | packets <NUM> | infinity] [interval <5-60>]
 
 Only slightly different from the Cisco `ip pim spt-threshold` setting,
-this defines the number of bytes allowed over a given interval of
-seconds before the RP or the last-hop router tries to switch to the
-SPT.  By default the threshold is set to zero packets, which will cause
-a switch over to the SPT after the first multicast packet is received.
+pimd can trigger a switch to SPT on a rate or number of packets and you
+can also tweak the poll interval.  It's recommended to keep the interval
+in the tens of seconds, the default is 100 sec.  The default threshold
+is set to zero packets, which will cause a switch over to the SPT after
+the first multicast packet is received.
 
 
 Example
 -------
 
-    default_source_preference 105
-    
+    # This pimd.conf example assumes a router with four interfaces.
+    # Interface eth0 is disabled, i.e., pimd will not run there.
+    # The default interface preference 101 has been changed on all
+    # the other interfaces.
     phyint eth0 disable
     phyint eth1 preference 255
     phyint eth2 preference 250
+    phyint eth3 preference 251
     
+    # Offer to be an RP for all of 224.0.0.0/4
     cand_rp eth1
     group_prefix 224.0.0.0 masklen 4
-    cand_bootstrap_router eth2
     
-    spt_threshold rate 60000 interval 10
+    # Partake in BSR elections as well
+    cand_bootstrap_router eth1
+    
+    # This is the built-in defaults, switch to SPT on first packet
+    spt_threshold packets 0 interval 100
 
 
 Starting
